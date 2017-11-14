@@ -172,7 +172,10 @@ func TestMesosTaskFilter(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		actual := mesosTaskFilter(c.mesosTask, c.exposedByDefault)
+		provider := &Provider{
+			ExposedByDefault:        true,
+		}
+		actual := provider.mesosTaskFilter(c.mesosTask, c.exposedByDefault)
 		log.Errorf("Statuses : %v", c.mesosTask.Statuses)
 		log.Errorf("Label : %v", c.mesosTask.Labels)
 		log.Errorf("DiscoveryInfo : %v", c.mesosTask.DiscoveryInfo)

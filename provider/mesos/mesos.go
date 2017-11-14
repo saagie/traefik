@@ -44,6 +44,7 @@ type Provider struct {
 // Provide allows the mesos provider to provide configurations to traefik
 // using the given configuration channel.
 func (p *Provider) Provide(configurationChan chan<- types.ConfigMessage, pool *safe.Pool, constraints types.Constraints) error {
+	p.Constraints = append(p.Constraints, constraints...)
 	operation := func() error {
 
 		// initialize logging
@@ -148,7 +149,7 @@ func (p *Provider) loadMesosConfig() *types.Configuration {
 
 	//filter tasks
 	filteredTasks := fun.Filter(func(task state.Task) bool {
-		return mesosTaskFilter(task, p.ExposedByDefault)
+		return p.mesosTaskFilter(task, p.ExposedByDefault)
 	}, tasks).([]state.Task)
 
 	filteredApps := []state.Task{}
@@ -195,13 +196,23 @@ func labels(task state.Task, key string) string {
 	return ""
 }
 
-func mesosTaskFilter(task state.Task, exposedByDefaultFlag bool) bool {
+func (p *Provider) mesosTaskFilter(task state.Task, exposedByDefaultFlag bool) bool {
 	if len(task.DiscoveryInfo.Ports.DiscoveryPorts) == 0 {
 		log.Debugf("Filtering Mesos task without port %s", task.Name)
 		return false
 	}
 	if !isMesosApplicationEnabled(task, exposedByDefaultFlag) {
 		log.Debugf("Filtering disabled Mesos task %s", task.DiscoveryInfo.Name)
+		return false
+	}
+
+	// Filter by constraints.
+	label, _ := p.getAppLabel(task, types.LabelTags)
+	constraintTags := strings.Split(label, ",")
+	if ok, failingConstraint := p.MatchConstraints(constraintTags); !ok {
+		if failingConstraint != nil {
+			log.Debugf("Filtering Marathon application %v pruned by '%v' constraint", task.Name, failingConstraint.String())
+		}
 		return false
 	}
 
@@ -262,13 +273,19 @@ func isMesosApplicationEnabled(task state.Task, exposedByDefault bool) bool {
 	return exposedByDefault && labels(task, types.LabelEnable) != "false" || labels(task, types.LabelEnable) == "true"
 }
 
-func (p *Provider) getLabel(task state.Task, label string) (string, error) {
+//getAppLabel is a convenience function to get application label, when no serviceName is available
+//it is identical to calling getLabel(application, label, "")
+func (p *Provider) getAppLabel(task state.Task, label string) (string, bool) {
+	return p.getLabel(task, label)
+}
+
+func (p *Provider) getLabel(task state.Task, label string) (string, bool) {
 	for _, tmpLabel := range task.Labels {
 		if tmpLabel.Key == label {
-			return tmpLabel.Value, nil
+			return tmpLabel.Value, true
 		}
 	}
-	return "", errors.New("Label not found:" + label)
+	return "", false
 }
 
 func (p *Provider) getPort(task state.Task, applications []state.Task) string {
@@ -278,12 +295,12 @@ func (p *Provider) getPort(task state.Task, applications []state.Task) string {
 		return ""
 	}
 
-	if portIndexLabel, err := p.getLabel(application, types.LabelPortIndex); err == nil {
+	if portIndexLabel, ok := p.getLabel(application, types.LabelPortIndex); ok {
 		if index, err := strconv.Atoi(portIndexLabel); err == nil {
 			return strconv.Itoa(task.DiscoveryInfo.Ports.DiscoveryPorts[index].Number)
 		}
 	}
-	if portValueLabel, err := p.getLabel(application, types.LabelPort); err == nil {
+	if portValueLabel, ok := p.getLabel(application, types.LabelPort); ok {
 		return portValueLabel
 	}
 
@@ -300,14 +317,14 @@ func (p *Provider) getWeight(task state.Task, applications []state.Task) string 
 		return "0"
 	}
 
-	if label, err := p.getLabel(application, types.LabelWeight); err == nil {
+	if label, ok := p.getLabel(application, types.LabelWeight); ok {
 		return label
 	}
 	return "0"
 }
 
 func (p *Provider) getDomain(task state.Task) string {
-	if label, err := p.getLabel(task, types.LabelDomain); err == nil {
+	if label, ok := p.getLabel(task, types.LabelDomain); ok {
 		return label
 	}
 	return p.Domain
@@ -319,28 +336,28 @@ func (p *Provider) getProtocol(task state.Task, applications []state.Task) strin
 		log.Errorf("Unable to get Mesos application from task %s", task.DiscoveryInfo.Name)
 		return "http"
 	}
-	if label, err := p.getLabel(application, types.LabelProtocol); err == nil {
+	if label, ok := p.getLabel(application, types.LabelProtocol); ok {
 		return label
 	}
 	return "http"
 }
 
 func (p *Provider) getPassHostHeader(task state.Task) string {
-	if passHostHeader, err := p.getLabel(task, types.LabelFrontendPassHostHeader); err == nil {
+	if passHostHeader, ok := p.getLabel(task, types.LabelFrontendPassHostHeader); ok {
 		return passHostHeader
 	}
 	return "false"
 }
 
 func (p *Provider) getPriority(task state.Task) string {
-	if priority, err := p.getLabel(task, types.LabelFrontendPriority); err == nil {
+	if priority, ok := p.getLabel(task, types.LabelFrontendPriority); ok {
 		return priority
 	}
 	return "0"
 }
 
 func (p *Provider) getEntryPoints(task state.Task) []string {
-	if entryPoints, err := p.getLabel(task, types.LabelFrontendEntryPoints); err == nil {
+	if entryPoints, ok := p.getLabel(task, types.LabelFrontendEntryPoints); ok {
 		return strings.Split(entryPoints, ",")
 	}
 	return []string{}
@@ -349,7 +366,7 @@ func (p *Provider) getEntryPoints(task state.Task) []string {
 // getFrontendRule returns the frontend rule for the specified application, using
 // it's label. It returns a default one (Host) if the label is not present.
 func (p *Provider) getFrontendRule(task state.Task) string {
-	if label, err := p.getLabel(task, types.LabelFrontendRule); err == nil {
+	if label, ok := p.getLabel(task, types.LabelFrontendRule); ok {
 		return label
 	}
 	return "Host:" + strings.ToLower(strings.Replace(p.getSubDomain(task.DiscoveryInfo.Name), "_", "-", -1)) + "." + p.Domain
@@ -365,7 +382,7 @@ func (p *Provider) getBackend(task state.Task, applications []state.Task) string
 }
 
 func (p *Provider) getFrontendBackend(task state.Task) string {
-	if label, err := p.getLabel(task, types.LabelBackend); err == nil {
+	if label, ok := p.getLabel(task, types.LabelBackend); ok {
 		return label
 	}
 	return "-" + cleanupSpecialChars(task.DiscoveryInfo.Name)
