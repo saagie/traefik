@@ -20,6 +20,7 @@ import (
 	"github.com/mesosphere/mesos-dns/detect"
 	"github.com/mesosphere/mesos-dns/logging"
 	"github.com/mesosphere/mesos-dns/util"
+	"github.com/containous/traefik/provider/label"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -144,10 +145,10 @@ func (p *Provider) getTasks() []state.Task {
 		return nil
 	}
 
-	return taskRecords(st)
+	return taskRecords(st, p)
 }
 
-func taskRecords(st state.State) []state.Task {
+func taskRecords(st state.State, p *Provider) []state.Task {
 	var tasks []state.Task
 	for _, f := range st.Frameworks {
 		for _, task := range f.Tasks {
@@ -157,10 +158,15 @@ func taskRecords(st state.State) []state.Task {
 				}
 			}
 
+			arrayConstraints := []string{label.GetStringValue(extractLabels(task), "traefik.tags", "")}
+
+			ok , _ := p.MatchConstraints(arrayConstraints)
+
 			// only do running and discoverable tasks
-			if task.State == "TASK_RUNNING" {
+			if task.State == "TASK_RUNNING" && ok {
 				tasks = append(tasks, task)
 			}
+
 		}
 	}
 

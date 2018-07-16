@@ -88,6 +88,7 @@ func NewTraefikDefaultPointersConfiguration() *TraefikConfiguration {
 	defaultMarathon.Endpoint = "http://127.0.0.1:8080"
 	defaultMarathon.ExposedByDefault = true
 	defaultMarathon.Constraints = types.Constraints{}
+	defaultMarathon.ModeConstraints = "and"
 	defaultMarathon.DialerTimeout = flaeg.Duration(60 * time.Second)
 	defaultMarathon.KeepAlive = flaeg.Duration(10 * time.Second)
 
@@ -138,6 +139,7 @@ func NewTraefikDefaultPointersConfiguration() *TraefikConfiguration {
 	defaultMesos.Endpoint = "http://127.0.0.1:5050"
 	defaultMesos.ExposedByDefault = true
 	defaultMesos.Constraints = types.Constraints{}
+	defaultMesos.ModeConstraints = "and"
 	defaultMesos.RefreshSeconds = 30
 	defaultMesos.ZkDetectionTimeout = 30
 	defaultMesos.StateTimeoutSecond = 30
