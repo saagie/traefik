@@ -874,20 +874,24 @@
   revision = "068d5470506e3780189fe607af40892814197c5e"
 
 [[projects]]
-  branch = "master"
   name = "github.com/mesosphere/mesos-dns"
   packages = [
     "detect",
     "errorutil",
+    "httpcli",
+    "httpcli/basic",
+    "httpcli/iam",
     "logging",
     "models",
     "records",
     "records/labels",
     "records/state",
+    "urls",
     "util"
   ]
-  revision = "b47dc4c19f215e98da687b15b4c64e70f629bea5"
-  source = "https://github.com/containous/mesos-dns.git"
+  revision = "81b3bec402b4d9f4d1cbec787eca48eaeefa4145"
+  source = "https://github.com/saagie/mesos-dns.git"
+  version = "v0.6.1"
 
 [[projects]]
   branch = "master"
@@ -1679,6 +1683,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ad34e6336e6f19b82c52e991d22c5b43b9144ed7dc83d7b17197583ace43f346"
+  inputs-digest = "ab1f18794db5ffa235b9d8c4fb644c97f5363c375b5542eb6cfe7dd040e98175"
   solver-name = "gps-cdcl"
   solver-version = 1

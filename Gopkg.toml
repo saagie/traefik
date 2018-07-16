@@ -121,7 +121,8 @@
 
 [[constraint]]
   name = "github.com/mesosphere/mesos-dns"
-  source = "https://github.com/containous/mesos-dns.git"
+  source = "https://github.com/saagie/mesos-dns.git"
+  version = "0.6.1"
 
 [[constraint]]
   branch = "master"

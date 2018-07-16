@@ -2,10 +2,12 @@ package state
 
 import (
 	"bytes"
-	"github.com/mesos/mesos-go/upid"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/mesos/mesos-go/upid"
+	"github.com/mesosphere/mesos-dns/logging"
 )
 
 // Resources holds resources as defined in the /state.json Mesos HTTP endpoint.
@@ -28,8 +30,16 @@ func (r Resources) Ports() []string {
 	for _, port := range mports {
 		tmp := strings.TrimSpace(port)
 		pz := strings.Split(tmp, "-")
-		lo, _ := strconv.Atoi(pz[0])
-		hi, _ := strconv.Atoi(pz[1])
+		lo, err := strconv.Atoi(pz[0])
+		if err != nil {
+			logging.Error.Println(err)
+			continue
+		}
+		hi, err := strconv.Atoi(pz[1])
+		if err != nil {
+			logging.Error.Println(err)
+			continue
+		}
 
 		for t := lo; t <= hi; t++ {
 			yports = append(yports, strconv.Itoa(t))
@@ -84,7 +94,7 @@ type Task struct {
 	Resources     `json:"resources"`
 	DiscoveryInfo DiscoveryInfo `json:"discovery"`
 
-	SlaveIP string  `json:"-"`
+	SlaveIP string `json:"-"`
 	Labels  []Label `json:"labels,omitempty"`
 }
 

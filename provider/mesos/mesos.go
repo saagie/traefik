@@ -21,6 +21,8 @@ import (
 	"github.com/mesosphere/mesos-dns/logging"
 	"github.com/mesosphere/mesos-dns/util"
 	"github.com/containous/traefik/provider/label"
+	"github.com/mesosphere/mesos-dns/httpcli"
+	"github.com/mesosphere/mesos-dns/httpcli/basic"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -36,6 +38,10 @@ type Provider struct {
 	RefreshSeconds     int    `description:"Polling interval (in seconds)" export:"true"`
 	IPSources          string `description:"IPSources (e.g. host, docker, mesos, netinfo)" export:"true"`
 	StateTimeoutSecond int    `description:"HTTP Timeout (in seconds)" export:"true"`
+	Auth               string `description:"Auth : 'basic' or ''" export:""`
+	Login              string `description:"Mesos Login"  export:""`
+	Password           string `description:"Mesos Password"  export:""`
+	CACertFile         string `description:"Path to CA Cert File" export:""`
 	Masters            []string
 }
 
@@ -51,6 +57,21 @@ func (p *Provider) Provide(configurationChan chan<- types.ConfigMessage, pool *s
 
 		var zk string
 		var masters []string
+
+		basic.Register()
+		config:= records.NewConfig()
+
+		config.MesosAuthentication=httpcli.AuthMechanism(p.Auth)
+		config.CACertFile=p.CACertFile
+
+		cm:= httpcli.ConfigMapOptions{basic.Configuration(basic.Credentials{ p.Login	,p.Password})}
+		config.HttpConfigMap = cm.ToConfigMap()
+		err := httpcli.Validate(config.MesosAuthentication, config.HttpConfigMap)
+
+		if err != nil {		logging.Error.Fatal(err.Error())	}
+
+		generatorOptions := []records.Option{		records.WithConfig(config),	}
+		rg := records.NewRecordGenerator(generatorOptions...)
 
 		if strings.HasPrefix(p.Endpoint, "zk://") {
 			zk = p.Endpoint
@@ -80,7 +101,7 @@ func (p *Provider) Provide(configurationChan chan<- types.ConfigMessage, pool *s
 		for {
 			select {
 			case <-reload.C:
-				tasks := p.getTasks()
+				tasks := p.getTasks(rg)
 				configuration := p.buildConfiguration(tasks)
 				if configuration != nil {
 					configurationChan <- types.ConfigMessage{
@@ -97,7 +118,7 @@ func (p *Provider) Provide(configurationChan chan<- types.ConfigMessage, pool *s
 				}
 				log.Debugf("new masters detected: %v", masters)
 				p.Masters = masters
-				tasks := p.getTasks()
+				tasks := p.getTasks(rg)
 				configuration := p.buildConfiguration(tasks)
 				if configuration != nil {
 					configurationChan <- types.ConfigMessage{
@@ -136,8 +157,9 @@ func detectMasters(zk string, masters []string) <-chan []string {
 	return changed
 }
 
-func (p *Provider) getTasks() []state.Task {
-	rg := records.NewRecordGenerator(time.Duration(p.StateTimeoutSecond) * time.Second)
+
+func (p *Provider) getTasks(rg *records.RecordGenerator) []state.Task {
+
 
 	st, err := rg.FindMaster(p.Masters...)
 	if err != nil {
