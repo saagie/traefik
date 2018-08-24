@@ -23,6 +23,10 @@ import (
 	"github.com/containous/traefik/provider/label"
 	"github.com/mesosphere/mesos-dns/httpcli"
 	"github.com/mesosphere/mesos-dns/httpcli/basic"
+
+	"net/url"
+	"strconv"
+	"net"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -173,6 +177,39 @@ func (p *Provider) getTasks(rg *records.RecordGenerator) []state.Task {
 func taskRecords(st state.State, p *Provider) []state.Task {
 	var tasks []state.Task
 	for _, f := range st.Frameworks {
+
+		if f.WebUI_Url != "" && f.Principal == "spark" {
+			urlValue, _ := url.Parse(f.WebUI_Url)
+			hostname, i, _ := net.SplitHostPort(urlValue.Host)
+			port, _ := strconv.Atoi(i)
+
+			frameworkIPs, _ := net.LookupHost(f.Hostname)
+			for _, slave := range st.Slaves {
+				if frameworkIPs[0] == slave.Hostname {
+					platformId := strings.Split(slave.Attributes["platform"], "platform")[1]
+					appName := f.ID
+					task := state.Task{
+						Name:        appName,
+						FrameworkID: f.PID.ID,
+						ID: platformId + "-" + appName + "-" + f.PID.ID,
+						SlaveID:     f.PID.Host,
+						SlaveIP:     hostname,
+						State:       "TASK_RUNNING",
+						DiscoveryInfo: state.DiscoveryInfo{
+							Name:  platformId + "-" + appName,
+							Ports: state.Ports{DiscoveryPorts: [] state.DiscoveryPort{{Number: port}}},
+						},
+						Labels: [] state.Label{
+							{Key: "traefik.enable", Value: "true"},
+							{Key: "traefik.frontend.passHostHeader", Value: "true"},
+						},
+					}
+					tasks = append(tasks, task)
+					break;
+				}
+			}
+		}
+
 		for _, task := range f.Tasks {
 			for _, slave := range st.Slaves {
 				if task.SlaveID == slave.ID {

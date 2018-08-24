@@ -889,9 +889,9 @@
     "urls",
     "util"
   ]
-  revision = "81b3bec402b4d9f4d1cbec787eca48eaeefa4145"
+  revision = "d31d7609fa6b4a4734bc8b12d96f7d5b7416c38b"
   source = "https://github.com/saagie/mesos-dns.git"
-  version = "v0.6.1"
+  version = "v0.6.2"
 
 [[projects]]
   branch = "master"

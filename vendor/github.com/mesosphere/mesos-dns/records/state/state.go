@@ -60,7 +60,7 @@ type Status struct {
 	State           string          `json:"state"`
 	Labels          []Label         `json:"labels,omitempty"`
 	ContainerStatus ContainerStatus `json:"container_status,omitempty"`
-	Healthy         *bool          	`json:"healthy"`
+	Healthy         *bool           `json:"healthy"`
 }
 
 // ContainerStatus holds container metadata as defined in the /state.json
@@ -94,7 +94,7 @@ type Task struct {
 	Resources     `json:"resources"`
 	DiscoveryInfo DiscoveryInfo `json:"discovery"`
 
-	SlaveIP string `json:"-"`
+	SlaveIP string  `json:"-"`
 	Labels  []Label `json:"labels,omitempty"`
 }
 
@@ -217,10 +217,13 @@ func labels(key string) func(*Status) []string {
 
 // Framework holds a framework as defined in the /state.json Mesos HTTP endpoint.
 type Framework struct {
-	Tasks    []Task `json:"tasks"`
-	PID      PID    `json:"pid"`
-	Name     string `json:"name"`
-	Hostname string `json:"hostname"`
+	ID        string `json:"id"`
+	Tasks     []Task `json:"tasks"`
+	PID       PID    `json:"pid"`
+	Name      string `json:"name"`
+	Hostname  string `json:"hostname"`
+	WebUI_Url string `json:"webui_url"`
+	Principal string `json:"principal"`
 }
 
 // HostPort returns the hostname and port where a framework's scheduler is
@@ -234,9 +237,10 @@ func (f Framework) HostPort() (string, string) {
 
 // Slave holds a slave as defined in the /state.json Mesos HTTP endpoint.
 type Slave struct {
-	ID       string `json:"id"`
-	Hostname string `json:"hostname"`
-	PID      PID    `json:"pid"`
+	ID         string            `json:"id"`
+	Hostname   string            `json:"hostname"`
+	PID        PID               `json:"pid"`
+	Attributes map[string]string `json:"attributes"`
 }
 
 // PID holds a Mesos PID and implements the json.Unmarshaler interface.
@@ -263,8 +267,8 @@ type DiscoveryInfo struct {
 	Location    string `json:"location,omitempty"`
 	Environment string `json:"environment,omitempty"`
 	Labels      struct {
-			    Labels []Label `json:"labels"`
-		    } `json:"labels"`
+		Labels []Label `json:"labels"`
+	} `json:"labels"`
 	Ports Ports `json:"ports"`
 }
 
