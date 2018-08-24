@@ -16,17 +16,17 @@ import (
 	"github.com/mesosphere/mesos-dns/records/state"
 
 	// Register mesos zoo the detector
+	"github.com/containous/traefik/provider/label"
 	_ "github.com/mesos/mesos-go/detector/zoo"
 	"github.com/mesosphere/mesos-dns/detect"
-	"github.com/mesosphere/mesos-dns/logging"
-	"github.com/mesosphere/mesos-dns/util"
-	"github.com/containous/traefik/provider/label"
 	"github.com/mesosphere/mesos-dns/httpcli"
 	"github.com/mesosphere/mesos-dns/httpcli/basic"
+	"github.com/mesosphere/mesos-dns/logging"
+	"github.com/mesosphere/mesos-dns/util"
 
+	"net"
 	"net/url"
 	"strconv"
-	"net"
 )
 
 var _ provider.Provider = (*Provider)(nil)
@@ -63,18 +63,20 @@ func (p *Provider) Provide(configurationChan chan<- types.ConfigMessage, pool *s
 		var masters []string
 
 		basic.Register()
-		config:= records.NewConfig()
+		config := records.NewConfig()
 
-		config.MesosAuthentication=httpcli.AuthMechanism(p.Auth)
-		config.CACertFile=p.CACertFile
+		config.MesosAuthentication = httpcli.AuthMechanism(p.Auth)
+		config.CACertFile = p.CACertFile
 
-		cm:= httpcli.ConfigMapOptions{basic.Configuration(basic.Credentials{ p.Login	,p.Password})}
+		cm := httpcli.ConfigMapOptions{basic.Configuration(basic.Credentials{p.Login, p.Password})}
 		config.HttpConfigMap = cm.ToConfigMap()
 		err := httpcli.Validate(config.MesosAuthentication, config.HttpConfigMap)
 
-		if err != nil {		logging.Error.Fatal(err.Error())	}
+		if err != nil {
+			logging.Error.Fatal(err.Error())
+		}
 
-		generatorOptions := []records.Option{		records.WithConfig(config),	}
+		generatorOptions := []records.Option{records.WithConfig(config)}
 		rg := records.NewRecordGenerator(generatorOptions...)
 
 		if strings.HasPrefix(p.Endpoint, "zk://") {
@@ -161,9 +163,7 @@ func detectMasters(zk string, masters []string) <-chan []string {
 	return changed
 }
 
-
 func (p *Provider) getTasks(rg *records.RecordGenerator) []state.Task {
-
 
 	st, err := rg.FindMaster(p.Masters...)
 	if err != nil {
@@ -191,21 +191,21 @@ func taskRecords(st state.State, p *Provider) []state.Task {
 					task := state.Task{
 						Name:        appName,
 						FrameworkID: f.PID.ID,
-						ID: platformId + "-" + appName + "-" + f.PID.ID,
+						ID:          platformId + "-" + appName + "-" + f.PID.ID,
 						SlaveID:     f.PID.Host,
 						SlaveIP:     hostname,
 						State:       "TASK_RUNNING",
 						DiscoveryInfo: state.DiscoveryInfo{
 							Name:  platformId + "-" + appName,
-							Ports: state.Ports{DiscoveryPorts: [] state.DiscoveryPort{{Number: port}}},
+							Ports: state.Ports{DiscoveryPorts: []state.DiscoveryPort{{Number: port}}},
 						},
-						Labels: [] state.Label{
+						Labels: []state.Label{
 							{Key: "traefik.enable", Value: "true"},
 							{Key: "traefik.frontend.passHostHeader", Value: "true"},
 						},
 					}
 					tasks = append(tasks, task)
-					break;
+					break
 				}
 			}
 		}
@@ -219,7 +219,7 @@ func taskRecords(st state.State, p *Provider) []state.Task {
 
 			arrayConstraints := []string{label.GetStringValue(extractLabels(task), "traefik.tags", "")}
 
-			ok , _ := p.MatchConstraints(arrayConstraints)
+			ok, _ := p.MatchConstraints(arrayConstraints)
 
 			// only do running and discoverable tasks
 			if task.State == "TASK_RUNNING" && ok {

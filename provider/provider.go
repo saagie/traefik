@@ -33,13 +33,12 @@ type BaseProvider struct {
 	DebugLogGeneratedTemplate bool              `description:"Enable debug logging of generated configuration template." export:"true"`
 }
 
-
 func (p *BaseProvider) MatchConstraints(tags []string) (bool, *types.Constraint) {
 
-	if p.ModeConstraints=="or"{
+	if p.ModeConstraints == "or" {
 		return p.MatchOrConstraints(tags)
 
-	}else{
+	} else {
 		return p.MatchAndConstraints(tags)
 	}
 }
@@ -70,7 +69,7 @@ func (p *BaseProvider) MatchOrConstraints(tags []string) (bool, *types.Constrain
 		matchConstraint = true
 	}
 	for _, constraint := range p.Constraints {
-		if (constraint.MatchConstraintWithAtLeastOneTag(tags) && constraint.MustMatch ) || (!constraint.MatchConstraintWithAtLeastOneTag(tags) && !constraint.MustMatch) {
+		if (constraint.MatchConstraintWithAtLeastOneTag(tags) && constraint.MustMatch) || (!constraint.MatchConstraintWithAtLeastOneTag(tags) && !constraint.MustMatch) {
 			matchConstraint = true
 		}
 	}
