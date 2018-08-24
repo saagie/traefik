@@ -27,7 +27,11 @@ func TestTaskRecords(t *testing.T) {
 		Frameworks: []state.Framework{framework},
 	}
 
-	var p = taskRecords(taskState)
+	var provider = &Provider{
+
+	}
+
+	var p = taskRecords(taskState, provider)
 	if len(p) == 0 {
 		t.Fatal("No task")
 	}
