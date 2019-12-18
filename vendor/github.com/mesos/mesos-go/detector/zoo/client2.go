@@ -1,6 +1,7 @@
 package zoo
 
 import (
+	"net/url"
 	"sync"
 	"time"
 
@@ -21,8 +22,14 @@ type client2 struct {
 	stopOnce sync.Once
 }
 
-func connect2(hosts []string, path string) (*client2, error) {
+func connect2(hosts []string, path string, userinfo *url.Userinfo) (*client2, error) {
 	c, ev, err := zk.Connect(hosts, zkSessionTimeout)
+	pass, set := userinfo.Password()
+	if (set){
+		authChain :=userinfo.Username()+":"+pass
+		c.AddAuth("digest", []byte(authChain))
+	}
+
 	if err != nil {
 		return nil, err
 	}
