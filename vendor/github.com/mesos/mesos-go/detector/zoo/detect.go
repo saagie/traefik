@@ -73,7 +73,8 @@ type MasterDetector struct {
 
 // Internal constructor function
 func NewMasterDetector(zkurls string) (*MasterDetector, error) {
-	zkHosts, zkPath, err := parseZk(zkurls)
+
+	zkHosts, zkPath, zkAuth,  err := parseZk(zkurls)
 	if err != nil {
 		log.Fatalln("Failed to parse url", err)
 		return nil, err
@@ -87,7 +88,7 @@ func NewMasterDetector(zkurls string) (*MasterDetector, error) {
 
 	detector.bootstrapFunc = func() (err error) {
 		if detector.client == nil {
-			detector.client, err = connect2(zkHosts, zkPath)
+			detector.client, err = connect2(zkHosts, zkPath, zkAuth)
 		}
 		return
 	}
@@ -96,16 +97,16 @@ func NewMasterDetector(zkurls string) (*MasterDetector, error) {
 	return detector, nil
 }
 
-func parseZk(zkurls string) ([]string, string, error) {
+func parseZk(zkurls string) ([]string, string, *url.Userinfo, error) {
 	u, err := url.Parse(zkurls)
 	if err != nil {
 		log.V(1).Infof("failed to parse url: %v", err)
-		return nil, "", err
+		return nil, "", url.User(""), err
 	}
 	if u.Scheme != "zk" {
-		return nil, "", fmt.Errorf("invalid url scheme for zk url: '%v'", u.Scheme)
+		return nil, "", url.User(""), fmt.Errorf("invalid url scheme for zk url: '%v'", u.Scheme)
 	}
-	return strings.Split(u.Host, ","), u.Path, nil
+	return strings.Split(u.Host, ","), u.Path, u.User, nil
 }
 
 // returns a chan that, when closed, indicates termination of the detector
